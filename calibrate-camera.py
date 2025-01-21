@@ -3,7 +3,7 @@ import numpy as np
 
 # Define the chessboard size
 chessboard_size = (9, 6)
-frame_interval = 5
+frame_interval = 20
 
 # Prepare object points
 objp = np.zeros((chessboard_size[0] * chessboard_size[1], 3), np.float32)
@@ -14,7 +14,7 @@ objpoints = []
 imgpoints = []
 
 # Capture video from the default camera
-video_path = 'calibration_video.mp4'
+video_path = 'videos\calibration_video.mp4'
 cap = cv2.VideoCapture(video_path)
 
 frame_count = 0
@@ -44,10 +44,12 @@ while True:
 
 cap.release()
 cv2.destroyAllWindows()
-
+print('image points:', len(imgpoints))
 # Calibrate the camera
 ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray.shape[::-1], None, None)
-
+if not ret:
+    print("Camera calibration failed.")
+    exit()
 # Save the calibration results
 np.savez('calibration_data.npz', mtx=mtx, dist=dist, rvecs=rvecs, tvecs=tvecs)
 
