@@ -14,7 +14,7 @@ objpoints = []
 imgpoints = []
 
 # Capture video from the default camera
-video_path = 'videos\calibration_video.mp4'
+video_path = 'videos\calibration_chessboard.mp4'
 cap = cv2.VideoCapture(video_path)
 
 frame_count = 0
