@@ -6,7 +6,7 @@ import numpy as np
 feature_extractor = cv2.SIFT_create()
 bf = cv2.BFMatcher()
 
-replace_image_path = 'images/israel-flag.png'
+replace_image_path = 'images/usa-flag.png'
 replace_img = cv2.imread(replace_image_path)
 if replace_img is None:
     raise FileNotFoundError(f"Replace image not found at {replace_image_path}")
@@ -17,7 +17,7 @@ if replace_img is None:
 # mtx, dist, rvecs, tvecs = calibration_data['mtx'], calibration_data['dist'], calibration_data['rvecs'], calibration_data['tvecs']
 
 # === template image keypoint and descriptors
-template_image_path = 'images/usa-flag.png'
+template_image_path = 'images/feature-full.webp'
 template_img = cv2.imread(template_image_path)
 replace_img = cv2.resize(replace_img, (template_img.shape[1], template_img.shape[0]))
 if template_img is None:
@@ -30,7 +30,7 @@ rgp_template = cv2.drawKeypoints(template_img, template_keypoints, None, flags=c
 cv2.imshow('Template image with keypoints', rgp_template)
 
 # ===== video input, output and metadata
-video_path = 'videos/flag-video.mp4'
+video_path = 'videos/magic-video.mp4'
 input_video = cv2.VideoCapture(video_path)
 if not input_video.isOpened():
     raise FileNotFoundError(f"Video file not found at {video_path}")
@@ -69,25 +69,27 @@ while True:
     # Apply ratio test
     good_match_arr = []
     pairs_match = []
+    print("processing matches")
     for m, n in matches:
-        if m.distance < 0.5 * n.distance:
+        if m.distance < 0.3 * n.distance:
             good_match_arr.append(m)
             pairs_match.append([m, n])
 
     if len(good_match_arr) < 4:
         continue
     # show only 30 matches
-    im_matches = cv2.drawMatchesKnn(
-        rgb_frame,
-        kp_frame,
-        rgp_template,
-        template_keypoints,
-        pairs_match[0:30],
-        None,
-        flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS,
-    )
+    # im_matches = cv2.drawMatches(
+    #     rgb_frame,
+    #     kp_frame,
+    #     rgp_template,
+    #     template_keypoints,
+    #     pairs_match[:30],
+    #     None,
+    #     1,
+    #     flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS,
+    # )
     
-    cv2.imshow('Matches', im_matches)
+    # cv2.imshow('Matches', im_matches)
 
     # Extract matched keypoints
     src_pts = np.array([template_keypoints[m.queryIdx].pt for m in good_match_arr])
@@ -103,10 +105,14 @@ while True:
 
         # Create a mask for overlay blending
         mask_warped = np.zeros_like(frame, dtype=np.uint8)
-        cv2.fillConvexPoly(mask_warped, np.int32(dst_pts), (255, 255, 255))
-
+        frame[warped_replace > 0] = 0
         # Blend the warped image onto the frame
-        frame = cv2.bitwise_and(frame, cv2.bitwise_not(mask_warped)) + warped_replace
+        frame = frame + warped_replace
+        
+        # Draw matches for visualization
+        match_img = cv2.drawMatches(template_img, template_keypoints, frame, kp_frame, good_match_arr, None, flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+        cv2.imshow('Matches', match_img)
+        cv2.imshow("wraped_replace", warped_replace)
 
     # =========== plot and save frame
     # Show output frame
@@ -115,8 +121,15 @@ while True:
     # Save frame to output video
     output_writer.write(frame)
 
-    wait_key = cv2.waitKey(1) & 0xFF
-    if wait_key == ord('q'):
+    # key = cv2.waitKey(0) & 0xFF
+    # if key == ord('l'):  # 'l' for next frame
+    #     continue
+    # # elif key == ord('k'):  # 'k' for previous frame
+    # #     frame_index = max(frame_index - 1, 0)
+    # #     continue
+    # elif key == ord('q'):  # 'q' to quit
+    #     break
+    if cv2.waitKey(10) & 0xFF == ord('q'):
         break
 
 # ======== end all
