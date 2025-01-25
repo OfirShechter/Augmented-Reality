@@ -6,7 +6,7 @@ import numpy as np
 feature_extractor = cv2.SIFT_create()
 bf = cv2.BFMatcher()
 
-replace_image_path = 'images/usa-flag.png'
+replace_image_path = 'images/castle.webp'
 replace_img = cv2.imread(replace_image_path)
 if replace_img is None:
     raise FileNotFoundError(f"Replace image not found at {replace_image_path}")
@@ -17,8 +17,9 @@ if replace_img is None:
 # mtx, dist, rvecs, tvecs = calibration_data['mtx'], calibration_data['dist'], calibration_data['rvecs'], calibration_data['tvecs']
 
 # === template image keypoint and descriptors
-template_image_path = 'images/feature-full.webp'
+template_image_path = 'images/magic- A4_page.jpg'
 template_img = cv2.imread(template_image_path)
+template_img = cv2.resize(template_img, (template_img.shape[1] // 2, template_img.shape[0] // 2))
 replace_img = cv2.resize(replace_img, (template_img.shape[1], template_img.shape[0]))
 if template_img is None:
     raise FileNotFoundError(f"Template image not found at {template_image_path}")
@@ -30,7 +31,7 @@ rgp_template = cv2.drawKeypoints(template_img, template_keypoints, None, flags=c
 cv2.imshow('Template image with keypoints', rgp_template)
 
 # ===== video input, output and metadata
-video_path = 'videos/magic-video.mp4'
+video_path = 'videos/videos1/video1.mp4'
 input_video = cv2.VideoCapture(video_path)
 if not input_video.isOpened():
     raise FileNotFoundError(f"Video file not found at {video_path}")
@@ -51,6 +52,8 @@ while True:
     success, frame = input_video.read()
     if not success:
         break
+    frame = cv2.resize(frame, (frame_width // 2, frame_height // 2))
+    original_frame = frame.copy()
     # ====== find keypoints matches of frame and template
     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -71,11 +74,12 @@ while True:
     pairs_match = []
     print("processing matches")
     for m, n in matches:
-        if m.distance < 0.3 * n.distance:
+        if m.distance < 0.6 * n.distance:
             good_match_arr.append(m)
             pairs_match.append([m, n])
 
     if len(good_match_arr) < 4:
+        print("Not enough matches found- len: ", len(good_match_arr))
         continue
     # show only 30 matches
     # im_matches = cv2.drawMatches(
@@ -100,6 +104,10 @@ while True:
 
     # ++++++++ do warping of another image on template image
     if H is not None:
+        # Draw matches for visualization
+        match_img = cv2.drawMatches(template_img, template_keypoints, frame, kp_frame, good_match_arr, None, flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+        cv2.imshow('Matches', match_img)
+        
         # Warp the cat image using the homography
         warped_replace = cv2.warpPerspective(replace_img, H, (frame.shape[1], frame.shape[0]))
 
@@ -109,9 +117,6 @@ while True:
         # Blend the warped image onto the frame
         frame = frame + warped_replace
         
-        # Draw matches for visualization
-        match_img = cv2.drawMatches(template_img, template_keypoints, frame, kp_frame, good_match_arr, None, flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
-        cv2.imshow('Matches', match_img)
         cv2.imshow("wraped_replace", warped_replace)
 
     # =========== plot and save frame
