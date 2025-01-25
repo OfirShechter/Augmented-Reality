@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 
 # ======= constants
-feature_extractor = cv2.SIFT_create()
+feature_extractor = cv2.SIFT_create(nfeatures=500, contrastThreshold = 0.01)
 bf = cv2.BFMatcher()
 
 replace_image_path = 'images/castle.webp'
@@ -17,7 +17,7 @@ if replace_img is None:
 # mtx, dist, rvecs, tvecs = calibration_data['mtx'], calibration_data['dist'], calibration_data['rvecs'], calibration_data['tvecs']
 
 # === template image keypoint and descriptors
-template_image_path = 'images/peb_page-0001.jpg'
+template_image_path = 'images/magic- A4_page.jpg'
 template_img = cv2.imread(template_image_path)
 template_img = cv2.resize(template_img, (template_img.shape[1] // 2, template_img.shape[0] // 2))
 replace_img = cv2.resize(replace_img, (template_img.shape[1], template_img.shape[0]))
@@ -25,13 +25,13 @@ if template_img is None:
     raise FileNotFoundError(f"Template image not found at {template_image_path}")
 
 gray_template = cv2.cvtColor(template_img, cv2.COLOR_BGR2GRAY)
-template_keypoints, template_descriptors = feature_extractor.detectAndCompute(template_img, None)
+template_keypoints, template_descriptors = feature_extractor.detectAndCompute(gray_template, None)
 
-rgp_template = cv2.drawKeypoints(template_img, template_keypoints, None, flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+rgp_template = cv2.drawKeypoints(gray_template, template_keypoints, None, flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 cv2.imshow('Template image with keypoints', rgp_template)
 
 # ===== video input, output and metadata
-video_path = 'videos/videos3/video3.mp4'
+video_path = 'videos/videos5/video5.mp4'
 input_video = cv2.VideoCapture(video_path)
 if not input_video.isOpened():
     raise FileNotFoundError(f"Video file not found at {video_path}")
@@ -59,7 +59,7 @@ while True:
     gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
     # find the keypoints and descriptors with chosen feature_extractor
-    kp_frame, desc_frame = feature_extractor.detectAndCompute(rgb_frame, None)
+    kp_frame, desc_frame = feature_extractor.detectAndCompute(gray_frame, None)
 
     test_frame = cv2.drawKeypoints(rgb_frame, kp_frame, None, flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
     
@@ -74,26 +74,13 @@ while True:
     pairs_match = []
     print("processing matches")
     for m, n in matches:
-        if m.distance < 0.6 * n.distance:
+        if m.distance < 0.5 * n.distance:
             good_match_arr.append(m)
             pairs_match.append([m, n])
 
     if len(good_match_arr) < 4:
         print("Not enough matches found- len: ", len(good_match_arr))
         continue
-    # show only 30 matches
-    # im_matches = cv2.drawMatches(
-    #     rgb_frame,
-    #     kp_frame,
-    #     rgp_template,
-    #     template_keypoints,
-    #     pairs_match[:30],
-    #     None,
-    #     1,
-    #     flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS,
-    # )
-    
-    # cv2.imshow('Matches', im_matches)
 
     # Extract matched keypoints
     src_pts = np.array([template_keypoints[m.queryIdx].pt for m in good_match_arr])
