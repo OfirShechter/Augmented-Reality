@@ -56,9 +56,7 @@ while True:
     test_frame = cv2.drawKeypoints(rgb_frame, kp_frame, None, flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
     
     cv2.imshow('Frame with keypoints', test_frame)
-    wait_key = cv2.waitKey(1) & 0xFF
-    if wait_key == ord('q'):
-        break
+    
     pass
 
     # ======== find homography
@@ -71,6 +69,10 @@ while True:
 
     # =========== plot and save frame
     pass
+
+    wait_key = cv2.waitKey(1) & 0xFF
+    if wait_key == ord('q'):
+        break
 
 # ======== end all
 pass
