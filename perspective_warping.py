@@ -17,7 +17,7 @@ if replace_img is None:
 # mtx, dist, rvecs, tvecs = calibration_data['mtx'], calibration_data['dist'], calibration_data['rvecs'], calibration_data['tvecs']
 
 # === template image keypoint and descriptors
-template_image_path = 'images/magic- A4_page.jpg'
+template_image_path = 'images/peb_page-0001.jpg'
 template_img = cv2.imread(template_image_path)
 template_img = cv2.resize(template_img, (template_img.shape[1] // 2, template_img.shape[0] // 2))
 replace_img = cv2.resize(replace_img, (template_img.shape[1], template_img.shape[0]))
@@ -25,20 +25,20 @@ if template_img is None:
     raise FileNotFoundError(f"Template image not found at {template_image_path}")
 
 gray_template = cv2.cvtColor(template_img, cv2.COLOR_BGR2GRAY)
-template_keypoints, template_descriptors = feature_extractor.detectAndCompute(gray_template, None)
+template_keypoints, template_descriptors = feature_extractor.detectAndCompute(template_img, None)
 
 rgp_template = cv2.drawKeypoints(template_img, template_keypoints, None, flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 cv2.imshow('Template image with keypoints', rgp_template)
 
 # ===== video input, output and metadata
-video_path = 'videos/videos1/video1.mp4'
+video_path = 'videos/videos3/video3.mp4'
 input_video = cv2.VideoCapture(video_path)
 if not input_video.isOpened():
     raise FileNotFoundError(f"Video file not found at {video_path}")
 
 output_video_path = 'videos/output_perspective_warping.avi'
-frame_width = int(input_video.get(cv2.CAP_PROP_FRAME_WIDTH))
-frame_height = int(input_video.get(cv2.CAP_PROP_FRAME_HEIGHT))
+frame_width = int(input_video.get(cv2.CAP_PROP_FRAME_WIDTH)) // 2
+frame_height = int(input_video.get(cv2.CAP_PROP_FRAME_HEIGHT)) // 2
 fps = input_video.get(cv2.CAP_PROP_FPS)
 # Create a VideoWriter for saving output
 output_writer = cv2.VideoWriter(
@@ -52,14 +52,14 @@ while True:
     success, frame = input_video.read()
     if not success:
         break
-    frame = cv2.resize(frame, (frame_width // 2, frame_height // 2))
+    frame = cv2.resize(frame, (frame_width, frame_height))
     original_frame = frame.copy()
     # ====== find keypoints matches of frame and template
     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
     # find the keypoints and descriptors with chosen feature_extractor
-    kp_frame, desc_frame = feature_extractor.detectAndCompute(gray_frame, None)
+    kp_frame, desc_frame = feature_extractor.detectAndCompute(rgb_frame, None)
 
     test_frame = cv2.drawKeypoints(rgb_frame, kp_frame, None, flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
     
