@@ -1,1 +1,5 @@
 .history
+__pycache__/
+pickle_files/*
+videos/*
+!videos/working-videos/
