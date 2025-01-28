@@ -3,6 +3,19 @@ import cv2
 import numpy as np
 
 from .helpers.frame_helpers import FrameHelpers
+import open3d as o3d
+
+model_path = "3d_models/ImageToStl.com_tiko/ImageToStl.com_tiko.obj"  # Update with your model path
+model = o3d.io.read_triangle_mesh(model_path, True)
+model = FrameHelpers.load_glb_with_materials(model_path)
+# Convert to legacy format for visualization
+# mesh_legacy = o3d.geometry.TriangleMesh.from_legacy(model.to_legacy())
+
+# Check if the model has textures
+print("Has vertex colors?", model.has_vertex_colors())
+print("Has textures?", model.has_textures())
+
+model.compute_vertex_normals()  # Compute normals for better rendering
 
 # ======= constants
 feature_extractor = cv2.SIFT_create(nfeatures=500, edgeThreshold = 20)
@@ -196,37 +209,33 @@ while frame_index < len(frames):
     # We saw how to draw cubes in camera calibration. (copy paste)
     # after this works you can replace this with the draw function from the renderer class renderer.draw() (1 line)
     if ret:
-        imgpts = cv2.projectPoints(cube_points, rvec, tvec, K, dist_coeffs)[0]
-        # # Draw the projected points on the frame
-        # for pt in imgpts:
-        #     print("pt:", pt)
-        #     pt = tuple(pt.ravel().astype(int))
-        #     cv2.circle(frame, pt, 5, (0, 255, 0), 5)
-        
-        # cv2.imshow('projectPoints', frame)
-        img_with_cube = draw_cube(frame, imgpts)
-        cv2.imshow('Cube', img_with_cube)
+        rendered_model = frame_helpers.render_model(
+            model, K, rvec, tvec, new_size)
+
+        # Show the result
+        cv2.imshow("3D Model on Chessboard", rendered_model)
+        # cv2.imshow('Cube', img_with_cube)
 
     # =========== plot and save frame
     pass
 
-    frame_index += step_size
-    # key = cv2.waitKey(0) & 0xFF
-    # if key == ord('l'):  # 'l' for next frame
-    #     frame_index = min(frame_index + step_size, len(frames) - step_size)
-    #     print("l changed frame index to:", frame_index)
-    #     continue
-    # elif key == ord('k'):  # 'k' for previous frame
-    #     frame_index = max(frame_index - step_size, 0)
-    #     continue
-    # elif key == ord('q'):  # 'q' to quit
-    #     break
-    # else:
-    #     print('UNESSIGNED KEY PRESSED:', key)
+    # frame_index += step_size
+    key = cv2.waitKey(0) & 0xFF
+    if key == ord('l'):  # 'l' for next frame
+        frame_index = min(frame_index + step_size, len(frames) - step_size)
+        print("l changed frame index to:", frame_index)
+        continue
+    elif key == ord('k'):  # 'k' for previous frame
+        frame_index = max(frame_index - step_size, 0)
+        continue
+    elif key == ord('q'):  # 'q' to quit
+        break
+    else:
+        print('UNESSIGNED KEY PRESSED:', key)
     if cv2.waitKey(10) & 0xFF == ord('q'):
         break
 
     # Save frame to output video
-    output_writer.write(frame)
+    # output_writer.write(frame)
 # ======== end all
 pass
