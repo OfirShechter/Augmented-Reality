@@ -13,28 +13,40 @@ replace_img = cv2.imread(replace_image_path)
 replace_img[replace_img == 0] = 1
 if replace_img is None:
     raise FileNotFoundError(f"Replace image not found at {replace_image_path}")
-# taked data previusly saved using: np.savez('calibration_data.npz', mtx=mtx, dist=dist, rvecs=rvecs, tvecs=tvecs)
+# taked data previusly saved using: np.savez('calibration_data.npz', mtx=mtx, dist=dist)
 calibration_data_path = 'calibration_data.npz'
 # load camera calibration data
 calibration_data = np.load(calibration_data_path) # keys: mtx, dist, rvecs, tvecs
 K = calibration_data['mtx']
 dist_coeffs = calibration_data['dist']
 # ====== cube object points
-square_size = 5  # Cube height in cm
+chessboard_size = (9, 6)
+square_size = 2.5  # Cube height in cm
+# Prepare object points
+objp = np.zeros((chessboard_size[0] * chessboard_size[1], 3), np.float32)
+objp[:, :2] = np.mgrid[0:chessboard_size[0], 0:chessboard_size[1]].T.reshape(-1, 2)
+objp *= square_size
 
 # Cube 3D points
-cube_points = 3 * square_size * np.array(
-        [
-            [0, 0, 0],
-            [0, 1, 0],
-            [1, 1, 0],
-            [1, 0, 0],
-            [0, 0, -1],
-            [0, 1, -1],
-            [1, 1, -1],
-            [1, 0, -1],
-        ]
-    )
+cube_points = 3 * square_size * np.float32([
+    [0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0],
+    [0, 0, -1], [1, 0, -1], [1, 1, -1], [0, 1, -1]
+])
+
+def draw_cube(img, imgpts):
+    imgpts = np.int32(imgpts).reshape(-1, 2)
+
+    # draw ground floor in green
+    img = cv2.drawContours(img, [imgpts[:4]], -1, (0, 255, 0), -1)
+
+    # draw pillars in blue color
+    for i, j in zip(range(4), range(4, 8)):
+        img = cv2.line(img, tuple(imgpts[i]), tuple(imgpts[j]), (255), 3)
+
+    # draw top layer in red color
+    img = cv2.drawContours(img, [imgpts[4:]], -1, (0, 0, 255), 3)
+
+    return img
 
 
 # === template image keypoint and descriptors
@@ -108,7 +120,6 @@ while frame_index < len(frames):
     # take top 10 with lowest distance
     good_match_arr = sorted(
         good_match_arr, key=lambda x: x.distance)[:75]
-    print("good match len:", len(good_match_arr)) 
     if len(good_match_arr) < 4:
         print("Not enough matches found- len: ", len(good_match_arr))
         frame_index += step_size
@@ -148,20 +159,24 @@ while frame_index < len(frames):
     else:
         print("Homography not found")
         frame_index + step_size
-        pass # take prev frame- no homography found
+        continue # take prev frame- no homography found
 
     # imgpts = cv2.projectPoints(cube_points, rvecs[frame_index], tvecs[frame_index], mtx, dist)[0]
     # drawn_image = draw_obj(frame, imgpts)
     # Show output frame
-    cv2.imshow('Cube', frame)
-    # Save frame to output video
-    output_writer.write(frame)
+    # cv2.imshow('Chessboard', frame)
+    
     
     # ++++++++ take subset of keypoints that obey homography (both frame and reference)
     # this is at most 3 lines- 2 of which are really the same
     # HINT: the function from above should give you this almost completely
-    pass
-
+    gray_wraped_frame = cv2.cvtColor(warped_replace, cv2.COLOR_BGR2GRAY)
+    ret, corners = cv2.findChessboardCorners(gray_wraped_frame, chessboard_size, None)
+    if not ret:
+        print("Chessboard not found in warped image")
+        frame_index += step_size
+        continue
+    sub_corners = cv2.cornerSubPix(gray_wraped_frame, corners, (11, 11), (-1, -1), (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001))
     # ++++++++ solve PnP to get cam pose (r_vec and t_vec)
     # `cv2.solvePnP` is a function that receives:
     # - xyz of the template in centimeter in camera world (x,3)
@@ -175,12 +190,22 @@ while frame_index < len(frames):
     # For this we just need the template width and height in cm.
     #
     # this part is 2 rows
-    pass
+    ret, rvec, tvec = cv2.solvePnP(objp, sub_corners, K, dist_coeffs)
 
     # ++++++ draw object with r_vec and t_vec on top of rgb frame
     # We saw how to draw cubes in camera calibration. (copy paste)
     # after this works you can replace this with the draw function from the renderer class renderer.draw() (1 line)
-    pass
+    if ret:
+        imgpts = cv2.projectPoints(cube_points, rvec, tvec, K, dist_coeffs)[0]
+        # # Draw the projected points on the frame
+        # for pt in imgpts:
+        #     print("pt:", pt)
+        #     pt = tuple(pt.ravel().astype(int))
+        #     cv2.circle(frame, pt, 5, (0, 255, 0), 5)
+        
+        # cv2.imshow('projectPoints', frame)
+        img_with_cube = draw_cube(frame, imgpts)
+        cv2.imshow('Cube', img_with_cube)
 
     # =========== plot and save frame
     pass
@@ -201,6 +226,7 @@ while frame_index < len(frames):
     if cv2.waitKey(10) & 0xFF == ord('q'):
         break
 
-
+    # Save frame to output video
+    output_writer.write(frame)
 # ======== end all
 pass
