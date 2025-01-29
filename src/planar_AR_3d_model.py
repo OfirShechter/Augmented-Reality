@@ -5,9 +5,9 @@ import numpy as np
 from .helpers.frame_helpers import FrameHelpers
 import open3d as o3d
 
-model_path = "3d_models/ImageToStl.com_tiko/ImageToStl.com_tiko.obj"  # Update with your model path
+model_path = "3d_models/ImageToStl.com_rubber_duck/ImageToStl.com_rubber_duck.obj"  # Update with your model path
 model = o3d.io.read_triangle_mesh(model_path, True)
-model = FrameHelpers.load_glb_with_materials(model_path)
+# model = FrameHelpers.load_glb_with_materials(model_path)
 # Convert to legacy format for visualization
 # mesh_legacy = o3d.geometry.TriangleMesh.from_legacy(model.to_legacy())
 
@@ -39,27 +39,6 @@ square_size = 2.5  # Cube height in cm
 objp = np.zeros((chessboard_size[0] * chessboard_size[1], 3), np.float32)
 objp[:, :2] = np.mgrid[0:chessboard_size[0], 0:chessboard_size[1]].T.reshape(-1, 2)
 objp *= square_size
-
-# Cube 3D points
-cube_points = 3 * square_size * np.float32([
-    [0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0],
-    [0, 0, -1], [1, 0, -1], [1, 1, -1], [0, 1, -1]
-])
-
-def draw_cube(img, imgpts):
-    imgpts = np.int32(imgpts).reshape(-1, 2)
-
-    # draw ground floor in green
-    img = cv2.drawContours(img, [imgpts[:4]], -1, (0, 255, 0), -1)
-
-    # draw pillars in blue color
-    for i, j in zip(range(4), range(4, 8)):
-        img = cv2.line(img, tuple(imgpts[i]), tuple(imgpts[j]), (255), 3)
-
-    # draw top layer in red color
-    img = cv2.drawContours(img, [imgpts[4:]], -1, (0, 0, 255), 3)
-
-    return img
 
 
 # === template image keypoint and descriptors
@@ -211,7 +190,7 @@ while frame_index < len(frames):
     if ret:
         rendered_model = frame_helpers.render_model(
             model, K, rvec, tvec, new_size)
-
+        
         # Show the result
         cv2.imshow("3D Model on Chessboard", rendered_model)
         # cv2.imshow('Cube', img_with_cube)

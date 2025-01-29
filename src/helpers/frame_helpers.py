@@ -102,7 +102,7 @@ class FrameHelpers:
 
         # Apply transformation
         mesh.transform(transformation_matrix)
-        # Ensure mesh has vertex colors
+       # Ensure mesh has vertex colors
         if not mesh.has_vertex_colors():
             print("⚠️ Mesh has no vertex colors! Applying default color.")
             mesh.paint_uniform_color([0.8, 0.3, 0.3])  # Default reddish color
@@ -146,67 +146,31 @@ class FrameHelpers:
             o3d.geometry.TriangleMesh: Open3D mesh with materials
         """
         # First load with trimesh to get the full scene with materials
-        scene = trimesh.load(file_path)
+        print(file_path)
+        scene = trimesh.load(file_path, file_type='glb')
         
         # Initialize an empty Open3D mesh
         final_mesh = o3d.geometry.TriangleMesh()
         
         # Process each geometry in the scene
         for name, geometry in scene.geometry.items():
-            # Convert vertices and faces to numpy arrays
-            vertices = np.array(geometry.vertices)
-            faces = np.array(geometry.faces)
-            
-            # Create an Open3D mesh for this geometry
+            # Convert trimesh geometry to Open3D geometry
             mesh = o3d.geometry.TriangleMesh()
-            mesh.vertices = o3d.utility.Vector3dVector(vertices)
-            mesh.triangles = o3d.utility.Vector3iVector(faces)
-            
-            # Handle vertex colors if available
+            mesh.vertices = o3d.utility.Vector3dVector(geometry.vertices)
+            mesh.triangles = o3d.utility.Vector3iVector(geometry.faces)
+            print("geometry.visual.kind:", geometry.visual.kind)
+            # Add vertex colors if available
             if geometry.visual.kind == 'vertex':
-                colors = np.array(geometry.visual.vertex_colors[:, :3]) / 255.0
-                mesh.vertex_colors = o3d.utility.Vector3dVector(colors)
+                mesh.vertex_colors = o3d.utility.Vector3dVector(geometry.visual.vertex_colors[:, :3])
             
-            # Handle face colors if available
-            elif geometry.visual.kind == 'face':
-                colors = np.array(geometry.visual.face_colors[:, :3]) / 255.0
-                # Repeat face colors for each vertex of the face
-                vertex_colors = np.repeat(colors, 3, axis=0)
-                mesh.vertex_colors = o3d.utility.Vector3dVector(vertex_colors)
-            
-            # If there's a material with a texture
-            if hasattr(geometry.visual, 'material'):
+            # Add texture if available
+            if geometry.visual.kind == 'texture':
+                mesh.triangle_uvs = o3d.utility.Vector2dVector(geometry.visual.uv)
                 if hasattr(geometry.visual.material, 'image'):
-                    try:
-                        # Convert texture image to vertex colors
-                        uv = geometry.visual.uv
-                        
-                        # Convert PIL image to numpy array and ensure RGB format
-                        pil_image = geometry.visual.material.image
-                        if pil_image.mode != 'RGB':
-                            pil_image = pil_image.convert('RGB')
-                        image = np.array(pil_image)
-                        
-                        # Sample colors from texture using UV coordinates
-                        colors = np.zeros((len(vertices), 3))
-                        for i, uv_coord in enumerate(uv):
-                            u, v = uv_coord
-                            x = min(max(int(u * (image.shape[1] - 1)), 0), image.shape[1] - 1)
-                            y = min(max(int((1 - v) * (image.shape[0] - 1)), 0), image.shape[0] - 1)
-                            colors[i] = image[y, x] / 255.0
-                        
-                        mesh.vertex_colors = o3d.utility.Vector3dVector(colors)
-                    except Exception as e:
-                        print(f"Warning: Could not process texture for geometry {name}: {str(e)}")
-                        # Set default color if texture processing fails
-                        default_color = np.array([0.7, 0.7, 0.7])  # Gray color
-                        colors = np.tile(default_color, (len(vertices), 1))
-                        mesh.vertex_colors = o3d.utility.Vector3dVector(colors)
+                    texture = geometry.visual.material.image
+                    mesh.textures = [o3d.geometry.Image(texture)]
             
-            # Compute normals
-            mesh.compute_vertex_normals()
-            
-            # Add to final mesh
+            # Combine the mesh with the final mesh
             final_mesh += mesh
         
         return final_mesh
