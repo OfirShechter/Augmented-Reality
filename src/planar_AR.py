@@ -204,7 +204,7 @@ while frame_index < len(frames):
         #     cv2.circle(frame, pt, 5, (0, 255, 0), 5)
         
         # cv2.imshow('projectPoints', frame)
-        img_with_cube = draw_cube(frame, imgpts)
+        img_with_cube = draw_cube(frames[frame_index].copy(), imgpts)
         cv2.imshow('Cube', img_with_cube)
 
     # =========== plot and save frame
@@ -227,6 +227,6 @@ while frame_index < len(frames):
         break
 
     # Save frame to output video
-    output_writer.write(frame)
+    output_writer.write(img_with_cube)
 # ======== end all
 pass
