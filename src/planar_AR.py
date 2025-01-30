@@ -22,10 +22,17 @@ dist_coeffs = calibration_data['dist']
 # ====== cube object points
 chessboard_size = (9, 6)
 square_size = 2.5  # Cube height in cm
+# Desired starting square (i, j)
+i, j = 2, 3
+
 # Prepare object points
 objp = np.zeros((chessboard_size[0] * chessboard_size[1], 3), np.float32)
 objp[:, :2] = np.mgrid[0:chessboard_size[0], 0:chessboard_size[1]].T.reshape(-1, 2)
 objp *= square_size
+
+# Shift the object points to start from the desired square
+objp[:, 0] -= i * square_size
+objp[:, 1] -= j * square_size
 
 # Cube 3D points
 cube_points = 3 * square_size * np.float32([
@@ -204,7 +211,9 @@ while frame_index < len(frames):
         #     cv2.circle(frame, pt, 5, (0, 255, 0), 5)
         
         # cv2.imshow('projectPoints', frame)
-        img_with_cube = draw_cube(frames[frame_index].copy(), imgpts)
+        output_frame = frames[frame_index].copy()
+        # output_frame = frame
+        img_with_cube = draw_cube(output_frame, imgpts)
         cv2.imshow('Cube', img_with_cube)
 
     # =========== plot and save frame
