@@ -16,6 +16,9 @@ print("Has vertex colors?", model.has_vertex_colors())
 print("Has textures?", model.has_textures())
 
 model.compute_vertex_normals()  # Compute normals for better rendering
+# Scale the 3D model
+scale_factor = 0.01
+model.scale(scale_factor, center=model.get_center())
 
 # ======= constants
 feature_extractor = cv2.SIFT_create(nfeatures=500, edgeThreshold = 20)
@@ -188,13 +191,51 @@ while frame_index < len(frames):
     # We saw how to draw cubes in camera calibration. (copy paste)
     # after this works you can replace this with the draw function from the renderer class renderer.draw() (1 line)
     if ret:
+        # Get the center of the model
+        center = model.get_center()
+        # Convert center to the required numpy array format (3x1)
+        center = np.array(center).reshape(3, 1)
+
+
         rendered_model = frame_helpers.render_model(
             model, K, rvec, tvec, new_size)
+        rendered_image = rendered_model
+        rendered_image = cv2.resize(rendered_image, (rendered_image.shape[1] // 10, rendered_image.shape[0] // 10))
+        # # Show the result
+        # cv2.imshow("3D Model", rendered_model)
         
-        # Show the result
-        cv2.imshow("3D Model on Chessboard", rendered_model)
-        # cv2.imshow('Cube', img_with_cube)
+        display_frame = frame.copy()
+        #############################################################################
+        # Create mask: Keep only non-black pixels (3D model)
+        gray_render = cv2.cvtColor(rendered_image, cv2.COLOR_RGB2GRAY)
+        gray_render[gray_render == 255] = 0
+        _, mask = cv2.threshold(gray_render, 1, 255, cv2.THRESH_BINARY)
 
+        # Find bounding box of the rendered model
+        x, y, w, h = cv2.boundingRect(mask)
+        print("bounding box:", x, y, w, h)
+        # Extract only the model part (crop image)
+        cropped_model = rendered_image[y:y+h, x:x+w]
+        cropped_mask = mask[y:y+h, x:x+w]
+        cropped_mask_3ch = np.stack([cropped_mask] * 3, axis=-1) 
+
+        print("cropped_model shape:", cropped_model.shape, "cropped_mask_3ch shape:", cropped_mask_3ch.shape)
+        # --------------------------
+        # Step 6: Overlay 3D Model onto Chessboard Image
+        # --------------------------
+        # Define region of interest (ROI) on the chessboard image
+        roi = display_frame[y:y+h, x:x+w]
+
+        # Copy only the model pixels to the chessboard image
+        print("roi shape:", roi.shape, "cropped_model shape:", cropped_model.shape)
+        roi[cropped_mask_3ch > 0] = cropped_model[cropped_mask_3ch > 0]
+
+        # Put back the modified ROI into the final image
+        display_frame[y:y+h, x:x+w] = roi
+
+        #############################################################################
+        cv2.imshow('3d mixed', display_frame)
+        
     # =========== plot and save frame
     pass
 
