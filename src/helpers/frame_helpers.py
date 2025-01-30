@@ -89,7 +89,7 @@ class FrameHelpers:
         return cv2.VideoWriter(output_video_path, fourcc, frame_rate, frame_size)
 
     @staticmethod
-    def render_model(mesh, camera_matrix, rvec, tvec, image_size):
+    def render_model(mesh, rvec, tvec):
         """Render the 3D model with Open3D from the estimated camera viewpoint."""
         
         # Convert rotation vector to rotation matrix
@@ -105,7 +105,7 @@ class FrameHelpers:
        # Ensure mesh has vertex colors
         if not mesh.has_vertex_colors():
             print("⚠️ Mesh has no vertex colors! Applying default color.")
-            mesh.paint_uniform_color([0.8, 0.3, 0.3])  # Default reddish color
+            # mesh.paint_uniform_color([0.8, 0.3, 0.3])  # Default reddish color
 
         # Ensure mesh has normals for shading
         if not mesh.has_vertex_normals():
@@ -113,12 +113,12 @@ class FrameHelpers:
 
         # Create a hidden Open3D visualizer
         vis = o3d.visualization.Visualizer()
-        vis.create_window(visible=False, width=image_size[1], height=image_size[0])
+        vis.create_window(visible=False)
 
         # Add lighting (Phong shading)
         opt = vis.get_render_option()
         opt.light_on = True  # Enable lighting
-        opt.background_color = np.array([1, 1, 1])  # White background
+        opt.background_color = np.array([0, 0, 0])  # White background
 
         # Add the model to the scene
         vis.add_geometry(mesh)

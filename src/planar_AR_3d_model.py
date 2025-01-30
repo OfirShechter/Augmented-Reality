@@ -16,9 +16,8 @@ print("Has vertex colors?", model.has_vertex_colors())
 print("Has textures?", model.has_textures())
 
 model.compute_vertex_normals()  # Compute normals for better rendering
-# Scale the 3D model
-scale_factor = 0.01
-model.scale(scale_factor, center=model.get_center())
+# display the model
+o3d.visualization.draw_geometries([model])
 
 # ======= constants
 feature_extractor = cv2.SIFT_create(nfeatures=500, edgeThreshold = 20)
@@ -38,6 +37,9 @@ dist_coeffs = calibration_data['dist']
 # ====== cube object points
 chessboard_size = (9, 6)
 square_size = 2.5  # Cube height in cm
+desired_square = (2, 3)  # Change this to the desired square (i, j)
+corner_index = desired_square[1] * chessboard_size[0] + desired_square[0]
+
 # Prepare object points
 objp = np.zeros((chessboard_size[0] * chessboard_size[1], 3), np.float32)
 objp[:, :2] = np.mgrid[0:chessboard_size[0], 0:chessboard_size[1]].T.reshape(-1, 2)
@@ -172,6 +174,10 @@ while frame_index < len(frames):
         frame_index += step_size
         continue
     sub_corners = cv2.cornerSubPix(gray_wraped_frame, corners, (11, 11), (-1, -1), (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001))
+    # Get the pixel coordinates of the desired corner
+    corner_pixel = np.floor(corners[corner_index][0]).astype(int)
+    # Draw the corner on the frame
+    cv2.circle(frame, tuple(corner_pixel), 10, (0, 255, 0), -1)
     # ++++++++ solve PnP to get cam pose (r_vec and t_vec)
     # `cv2.solvePnP` is a function that receives:
     # - xyz of the template in centimeter in camera world (x,3)
@@ -198,7 +204,7 @@ while frame_index < len(frames):
 
 
         rendered_model = frame_helpers.render_model(
-            model, K, rvec, tvec, new_size)
+            model, rvec, tvec)
         rendered_image = rendered_model
         rendered_image = cv2.resize(rendered_image, (rendered_image.shape[1] // 10, rendered_image.shape[0] // 10))
         # # Show the result
@@ -208,7 +214,6 @@ while frame_index < len(frames):
         #############################################################################
         # Create mask: Keep only non-black pixels (3D model)
         gray_render = cv2.cvtColor(rendered_image, cv2.COLOR_RGB2GRAY)
-        gray_render[gray_render == 255] = 0
         _, mask = cv2.threshold(gray_render, 1, 255, cv2.THRESH_BINARY)
 
         # Find bounding box of the rendered model
@@ -224,14 +229,14 @@ while frame_index < len(frames):
         # Step 6: Overlay 3D Model onto Chessboard Image
         # --------------------------
         # Define region of interest (ROI) on the chessboard image
-        roi = display_frame[y:y+h, x:x+w]
+        roi = display_frame[corner_pixel[1]:corner_pixel[1]+h, corner_pixel[0]:corner_pixel[0]+w]
 
         # Copy only the model pixels to the chessboard image
         print("roi shape:", roi.shape, "cropped_model shape:", cropped_model.shape)
         roi[cropped_mask_3ch > 0] = cropped_model[cropped_mask_3ch > 0]
 
-        # Put back the modified ROI into the final image
-        display_frame[y:y+h, x:x+w] = roi
+        # Put back the modified ROI into the final image- put the model on the square corner
+        display_frame[corner_pixel[1]:corner_pixel[1]+h, corner_pixel[0]:corner_pixel[0]+w] = roi
 
         #############################################################################
         cv2.imshow('3d mixed', display_frame)
