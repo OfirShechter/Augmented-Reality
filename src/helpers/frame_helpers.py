@@ -91,8 +91,7 @@ class FrameHelpers:
     @staticmethod
     def render_model(mesh, rvec, tvec):
         """Render the 3D model with Open3D from the estimated camera viewpoint."""
-        
-        # Convert rotation vector to rotation matrix
+        # # Convert rotation vector to rotation matrix
         R, _ = cv2.Rodrigues(rvec)
         
         # Build Open3D transformation matrix
@@ -100,8 +99,24 @@ class FrameHelpers:
         transformation_matrix[:3, :3] = R
         transformation_matrix[:3, 3] = tvec.flatten()
 
-        # Apply transformation
+        # #Apply transformation
+        # # print("tvec:", tvec.flatten(), "rvec:", rvec, "R:", R)
+        # t_mesh = mesh.translate(tvec, relative=False)
+        # mesh_mat_r = mesh.get_rotation_matrix_from_xyz(rvec.flatten())
+        # # print("mesh_mat_r:", mesh_mat_r)
+        # r_mesh = t_mesh.rotate(mesh_mat_r)
+        # # o3d.visualization.draw_geometries([mesh, r_mesh])
+
         mesh.transform(transformation_matrix)
+        # Create coordinate frame
+        coordinate_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=1.0)
+        coordinate_frame = coordinate_frame.translate(tvec, relative=False)
+        matR = coordinate_frame.get_rotation_matrix_from_axis_angle(rvec.flatten())
+        coordinate_frame = coordinate_frame.rotate(matR)
+        # # Translate the coordinate frame to the top left
+        # r_mat = coordinate_frame.get_rotation_matrix_from_xyz([np.pi, -np.pi, np.pi]) # [blue, red, ]
+        # coordinate_frame = coordinate_frame.rotate(r_mat)
+
        # Ensure mesh has vertex colors
         if not mesh.has_vertex_colors():
             print("⚠️ Mesh has no vertex colors! Applying default color.")
@@ -121,12 +136,14 @@ class FrameHelpers:
         opt.background_color = np.array([0, 0, 0])  # White background
 
         # Add the model to the scene
-        vis.add_geometry(mesh)
+        vis.add_geometry(coordinate_frame)
+        # vis.add_geometry(mesh)
         vis.poll_events()
         vis.update_renderer()
 
         # Capture image from Open3D
         render = vis.capture_screen_float_buffer(do_render=True)
+        # o3d.visualization.draw_geometries([mesh, coordinate_frame])
         vis.destroy_window()
 
         # Convert Open3D float buffer to OpenCV format

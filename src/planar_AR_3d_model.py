@@ -1,4 +1,5 @@
 # ======= imports
+import copy
 import cv2
 import numpy as np
 
@@ -6,18 +7,17 @@ from .helpers.frame_helpers import FrameHelpers
 import open3d as o3d
 
 model_path = "3d_models/ImageToStl.com_rubber_duck/ImageToStl.com_rubber_duck.obj"  # Update with your model path
-model = o3d.io.read_triangle_mesh(model_path, True)
+mesh = o3d.io.read_triangle_mesh(model_path, True)
 # model = FrameHelpers.load_glb_with_materials(model_path)
 # Convert to legacy format for visualization
 # mesh_legacy = o3d.geometry.TriangleMesh.from_legacy(model.to_legacy())
 
 # Check if the model has textures
-print("Has vertex colors?", model.has_vertex_colors())
-print("Has textures?", model.has_textures())
+print("Has vertex colors?", mesh.has_vertex_colors())
+print("Has textures?", mesh.has_textures())
 
-model.compute_vertex_normals()  # Compute normals for better rendering
-# display the model
-o3d.visualization.draw_geometries([model])
+mesh.compute_vertex_normals()  # Compute normals for better rendering
+# o3d.visualization.draw_geometries([model])
 
 # ======= constants
 feature_extractor = cv2.SIFT_create(nfeatures=500, edgeThreshold = 20)
@@ -37,13 +37,18 @@ dist_coeffs = calibration_data['dist']
 # ====== cube object points
 chessboard_size = (9, 6)
 square_size = 2.5  # Cube height in cm
-desired_square = (2, 3)  # Change this to the desired square (i, j)
-corner_index = desired_square[1] * chessboard_size[0] + desired_square[0]
+# Desired starting square (i, j)
+i, j = 2, 3
+corner_index = j * chessboard_size[0] + i
 
 # Prepare object points
 objp = np.zeros((chessboard_size[0] * chessboard_size[1], 3), np.float32)
 objp[:, :2] = np.mgrid[0:chessboard_size[0], 0:chessboard_size[1]].T.reshape(-1, 2)
 objp *= square_size
+
+# Shift the object points to start from the desired square
+objp[:, 0] -= i * square_size
+objp[:, 1] -= j * square_size
 
 
 # === template image keypoint and descriptors
@@ -197,6 +202,8 @@ while frame_index < len(frames):
     # We saw how to draw cubes in camera calibration. (copy paste)
     # after this works you can replace this with the draw function from the renderer class renderer.draw() (1 line)
     if ret:
+        model = copy.deepcopy(mesh)
+
         # Get the center of the model
         center = model.get_center()
         # Convert center to the required numpy array format (3x1)
@@ -211,7 +218,27 @@ while frame_index < len(frames):
         # cv2.imshow("3D Model", rendered_model)
         
         display_frame = frame.copy()
-        #############################################################################
+        # ######################################################
+        # #draw the cube as well for debug
+        # cube_points = 3 * square_size * np.float32([
+        #     [0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0],
+        #     [0, 0, -1], [1, 0, -1], [1, 1, -1], [0, 1, -1]
+        # ])
+        # imgpts = cv2.projectPoints(cube_points, rvec, tvec, K, dist_coeffs)[0]
+        # imgpts = np.int32(imgpts).reshape(-1, 2)
+
+        # # draw ground floor in green
+        # display_frame = cv2.drawContours(display_frame, [imgpts[:4]], -1, (0, 255, 0), -1)
+
+        # # draw pillars in blue color
+        # for i, j in zip(range(4), range(4, 8)):
+        #     display_frame = cv2.line(display_frame, tuple(imgpts[i]), tuple(imgpts[j]), (255), 3)
+
+        # # draw top layer in red color
+        # display_frame = cv2.drawContours(display_frame, [imgpts[4:]], -1, (0, 0, 255), 3)
+
+        # ######################################################
+        
         # Create mask: Keep only non-black pixels (3D model)
         gray_render = cv2.cvtColor(rendered_image, cv2.COLOR_RGB2GRAY)
         _, mask = cv2.threshold(gray_render, 1, 255, cv2.THRESH_BINARY)
@@ -237,30 +264,29 @@ while frame_index < len(frames):
 
         # Put back the modified ROI into the final image- put the model on the square corner
         display_frame[corner_pixel[1]:corner_pixel[1]+h, corner_pixel[0]:corner_pixel[0]+w] = roi
-
-        #############################################################################
+        
         cv2.imshow('3d mixed', display_frame)
         
     # =========== plot and save frame
     pass
 
-    # frame_index += step_size
-    key = cv2.waitKey(0) & 0xFF
-    if key == ord('l'):  # 'l' for next frame
-        frame_index = min(frame_index + step_size, len(frames) - step_size)
-        print("l changed frame index to:", frame_index)
-        continue
-    elif key == ord('k'):  # 'k' for previous frame
-        frame_index = max(frame_index - step_size, 0)
-        continue
-    elif key == ord('q'):  # 'q' to quit
-        break
-    else:
-        print('UNESSIGNED KEY PRESSED:', key)
+    frame_index += step_size
+    # key = cv2.waitKey(0) & 0xFF
+    # if key == ord('l'):  # 'l' for next frame
+    #     frame_index = min(frame_index + step_size, len(frames) - step_size)
+    #     print("l changed frame index to:", frame_index)
+    #     continue
+    # elif key == ord('k'):  # 'k' for previous frame
+    #     frame_index = max(frame_index - step_size, 0)
+    #     continue
+    # elif key == ord('q'):  # 'q' to quit
+    #     break
+    # else:
+    #     print('UNESSIGNED KEY PRESSED:', key)
     if cv2.waitKey(10) & 0xFF == ord('q'):
         break
 
     # Save frame to output video
-    # output_writer.write(frame)
+    output_writer.write(display_frame)
 # ======== end all
 pass
