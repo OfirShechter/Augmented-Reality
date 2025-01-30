@@ -108,23 +108,14 @@ class FrameHelpers:
         # # o3d.visualization.draw_geometries([mesh, r_mesh])
 
         mesh.transform(transformation_matrix)
-        # Create coordinate frame
-        coordinate_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=1.0)
-        coordinate_frame = coordinate_frame.translate(tvec, relative=False)
-        matR = coordinate_frame.get_rotation_matrix_from_axis_angle(rvec.flatten())
-        coordinate_frame = coordinate_frame.rotate(matR)
+        # # Create coordinate frame
+        # coordinate_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=1.0)
+        # coordinate_frame = coordinate_frame.translate(tvec, relative=False)
+        # matR = coordinate_frame.get_rotation_matrix_from_axis_angle(rvec.flatten())
+        # coordinate_frame = coordinate_frame.rotate(matR)
         # # Translate the coordinate frame to the top left
         # r_mat = coordinate_frame.get_rotation_matrix_from_xyz([np.pi, -np.pi, np.pi]) # [blue, red, ]
         # coordinate_frame = coordinate_frame.rotate(r_mat)
-
-       # Ensure mesh has vertex colors
-        if not mesh.has_vertex_colors():
-            print("⚠️ Mesh has no vertex colors! Applying default color.")
-            # mesh.paint_uniform_color([0.8, 0.3, 0.3])  # Default reddish color
-
-        # Ensure mesh has normals for shading
-        if not mesh.has_vertex_normals():
-            mesh.compute_vertex_normals()
 
         # Create a hidden Open3D visualizer
         vis = o3d.visualization.Visualizer()
@@ -136,8 +127,8 @@ class FrameHelpers:
         opt.background_color = np.array([0, 0, 0])  # White background
 
         # Add the model to the scene
-        vis.add_geometry(coordinate_frame)
-        # vis.add_geometry(mesh)
+        # vis.add_geometry(coordinate_frame)
+        vis.add_geometry(mesh)
         vis.poll_events()
         vis.update_renderer()
 

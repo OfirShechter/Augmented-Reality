@@ -50,6 +50,29 @@ objp *= square_size
 objp[:, 0] -= i * square_size
 objp[:, 1] -= j * square_size
 
+# Cube 3D points
+cube_points = 3 * square_size * np.float32([
+    [0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0],
+    [0, 0, -1], [1, 0, -1], [1, 1, -1], [0, 1, -1]
+])
+rectangle_points = square_size * np.float32([
+    [0, 0, 0], [2, 0, 0], [2, 3, 0], [0, 3, 0],  # Bottom face
+    [0, 0, -1], [2, 0, -1], [2, 3, -1], [0, 3, -1]  # Top face
+])
+def draw_cube(img, imgpts):
+    imgpts = np.int32(imgpts).reshape(-1, 2)
+
+    # draw ground floor in green
+    img = cv2.drawContours(img, [imgpts[:4]], -1, (0, 255, 0), -1)
+
+    # draw pillars in blue color
+    for i, j in zip(range(4), range(4, 8)):
+        img = cv2.line(img, tuple(imgpts[i]), tuple(imgpts[j]), (255), 3)
+
+    # draw top layer in red color
+    img = cv2.drawContours(img, [imgpts[4:]], -1, (0, 0, 255), 3)
+
+    return img
 
 # === template image keypoint and descriptors
 template_image_path = 'images/features_page-0001.jpg'
@@ -202,43 +225,25 @@ while frame_index < len(frames):
     # We saw how to draw cubes in camera calibration. (copy paste)
     # after this works you can replace this with the draw function from the renderer class renderer.draw() (1 line)
     if ret:
+        imgpts = cv2.projectPoints(cube_points, rvec, tvec, K, dist_coeffs)[0]
+        draw_cube(frame, imgpts)
+        # Get the bounding box of the projected points
+        x_min, y_min = np.min(imgpts[:, 0, :], axis=0).astype(int)
+        x_max, y_max = np.max(imgpts[:, 0, :], axis=0).astype(int)
+
         model = copy.deepcopy(mesh)
-
-        # Get the center of the model
-        center = model.get_center()
-        # Convert center to the required numpy array format (3x1)
-        center = np.array(center).reshape(3, 1)
-
 
         rendered_model = frame_helpers.render_model(
             model, rvec, tvec)
-        rendered_image = rendered_model
-        rendered_image = cv2.resize(rendered_image, (rendered_image.shape[1] // 10, rendered_image.shape[0] // 10))
+        rendered_image = rendered_model.copy()
+        new_sizes = ((y_max - y_min) , (x_max - x_min) )
+        rendered_image = cv2.resize(rendered_image, new_sizes)
+
         # # Show the result
         # cv2.imshow("3D Model", rendered_model)
         
         display_frame = frame.copy()
-        # ######################################################
-        # #draw the cube as well for debug
-        # cube_points = 3 * square_size * np.float32([
-        #     [0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0],
-        #     [0, 0, -1], [1, 0, -1], [1, 1, -1], [0, 1, -1]
-        # ])
-        # imgpts = cv2.projectPoints(cube_points, rvec, tvec, K, dist_coeffs)[0]
-        # imgpts = np.int32(imgpts).reshape(-1, 2)
-
-        # # draw ground floor in green
-        # display_frame = cv2.drawContours(display_frame, [imgpts[:4]], -1, (0, 255, 0), -1)
-
-        # # draw pillars in blue color
-        # for i, j in zip(range(4), range(4, 8)):
-        #     display_frame = cv2.line(display_frame, tuple(imgpts[i]), tuple(imgpts[j]), (255), 3)
-
-        # # draw top layer in red color
-        # display_frame = cv2.drawContours(display_frame, [imgpts[4:]], -1, (0, 0, 255), 3)
-
-        # ######################################################
-        
+           
         # Create mask: Keep only non-black pixels (3D model)
         gray_render = cv2.cvtColor(rendered_image, cv2.COLOR_RGB2GRAY)
         _, mask = cv2.threshold(gray_render, 1, 255, cv2.THRESH_BINARY)
@@ -256,6 +261,7 @@ while frame_index < len(frames):
         # Step 6: Overlay 3D Model onto Chessboard Image
         # --------------------------
         # Define region of interest (ROI) on the chessboard image
+        
         roi = display_frame[corner_pixel[1]:corner_pixel[1]+h, corner_pixel[0]:corner_pixel[0]+w]
 
         # Copy only the model pixels to the chessboard image
