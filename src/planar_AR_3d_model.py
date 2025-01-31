@@ -55,10 +55,24 @@ cube_points = 3 * square_size * np.float32([
     [0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0],
     [0, 0, -1], [1, 0, -1], [1, 1, -1], [0, 1, -1]
 ])
+
+cube_points_2 = 3 * square_size * np.float32([[0,0,0], [0,1,0], [1,1,0], [1,0,0],
+                   [0,0,-1],[0,1,-1],[1,1,-1],[1,0,-1] ])
+
 rectangle_points = square_size * np.float32([
     [0, 0, 0], [2, 0, 0], [2, 3, 0], [0, 3, 0],  # Bottom face
     [0, 0, -1], [2, 0, -1], [2, 3, -1], [0, 3, -1]  # Top face
 ])
+
+axis = 3 * square_size * np.float32([[1,0,0], [0,1,0], [0,0,-1]]).reshape(-1,3)
+
+def draw_axises(img, start_corner, imgpts):
+    imgpts = imgpts.astype("int32")
+    img = cv2.line(img, start_corner, tuple(imgpts[0].ravel()), (255,0,0), 5)
+    img = cv2.line(img, start_corner, tuple(imgpts[1].ravel()), (0,255,0), 5)
+    img = cv2.line(img, start_corner, tuple(imgpts[2].ravel()), (0,0,255), 5)
+    return img
+
 def draw_cube(img, imgpts):
     imgpts = np.int32(imgpts).reshape(-1, 2)
 
@@ -225,8 +239,11 @@ while frame_index < len(frames):
     # We saw how to draw cubes in camera calibration. (copy paste)
     # after this works you can replace this with the draw function from the renderer class renderer.draw() (1 line)
     if ret:
-        imgpts = cv2.projectPoints(cube_points, rvec, tvec, K, dist_coeffs)[0]
-        draw_cube(frame, imgpts)
+        imgpts = cv2.projectPoints(axis, rvec, tvec, K, dist_coeffs)[0]
+        draw_axises(frame, corner_pixel, imgpts)
+        # imgpts = cv2.projectPoints(cube_points_2, rvec, tvec, K, dist_coeffs)[0]
+        # draw_cube(frame, imgpts)
+        # draw_cube(frame, imgpts)
         # Get the bounding box of the projected points
         x_min, y_min = np.min(imgpts[:, 0, :], axis=0).astype(int)
         x_max, y_max = np.max(imgpts[:, 0, :], axis=0).astype(int)
@@ -277,18 +294,18 @@ while frame_index < len(frames):
     pass
 
     frame_index += step_size
-    # key = cv2.waitKey(0) & 0xFF
-    # if key == ord('l'):  # 'l' for next frame
-    #     frame_index = min(frame_index + step_size, len(frames) - step_size)
-    #     print("l changed frame index to:", frame_index)
-    #     continue
-    # elif key == ord('k'):  # 'k' for previous frame
-    #     frame_index = max(frame_index - step_size, 0)
-    #     continue
-    # elif key == ord('q'):  # 'q' to quit
-    #     break
-    # else:
-    #     print('UNESSIGNED KEY PRESSED:', key)
+    key = cv2.waitKey(0) & 0xFF
+    if key == ord('l'):  # 'l' for next frame
+        frame_index = min(frame_index + step_size, len(frames) - step_size)
+        print("l changed frame index to:", frame_index)
+        continue
+    elif key == ord('k'):  # 'k' for previous frame
+        frame_index = max(frame_index - step_size, 0)
+        continue
+    elif key == ord('q'):  # 'q' to quit
+        break
+    else:
+        print('UNESSIGNED KEY PRESSED:', key)
     if cv2.waitKey(10) & 0xFF == ord('q'):
         break
 
