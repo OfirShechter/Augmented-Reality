@@ -196,13 +196,13 @@ while frame_index < len(frames):
         warped_replace = cv2.warpPerspective(
             replace_img, H, (frame.shape[1], frame.shape[0]))
 
-        # Create a mask for overlay blending
-        mask_warped = np.zeros_like(frame, dtype=np.uint8)
-        frame[warped_replace > 0] = 0
-        # Blend the warped image onto the frame
-        frame = frame + warped_replace
-        # cv2.putText(frame, f"Frame: {frame_index}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-        cv2.imshow("wraped_replace", warped_replace)
+        # # Create a mask for overlay blending
+        # mask_warped = np.zeros_like(frame, dtype=np.uint8)
+        # frame[warped_replace > 0] = 0
+        # # Blend the warped image onto the frame
+        # frame = frame + warped_replace
+        # # cv2.putText(frame, f"Frame: {frame_index}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+        # cv2.imshow("wraped_replace", warped_replace)
     else:
         print("Homography not found")
         frame_index + step_size
@@ -241,29 +241,24 @@ while frame_index < len(frames):
     # For this we just need the template width and height in cm.
     #
     # this part is 2 rows
-    print(sub_corners.shape)
+    # print(sub_corners.shape)
     ret, rvec, tvec = cv2.solvePnP(objp, sub_corners, K, dist_coeffs)
 
     # ++++++ draw object with r_vec and t_vec on top of rgb frame
     # We saw how to draw cubes in camera calibration. (copy paste)
     # after this works you can replace this with the draw function from the renderer class renderer.draw() (1 line)
     if ret:
-        imgpts = cv2.projectPoints(axis, rvec, tvec, K, dist_coeffs)[0]
+        # imgpts = cv2.projectPoints(axis, rvec, tvec, K, dist_coeffs)[0]
         # ret, rvec, tvec = cv2.solvePnP(axis, imgpts, K, dist_coeffs)
         # draw_axises(frame, imgpts)
         imgpts = cv2.projectPoints(cube_points, rvec, tvec, K, dist_coeffs)[0]
         center_of_cube = np.mean(cube_points, axis=0)
         # draw_cube(frame, imgpts)
-        # draw_cube(frame, imgpts)
-        # Get the bounding box of the projected points
-        print("imgpts", imgpts)
         imgpts = np.int32(imgpts).reshape(-1, 2)
         lower_ground = imgpts[:4]
-        cv2.drawContours(frame, [lower_ground], -1, (0, 255, 0), -1)
-        print("lower_ground:", lower_ground)
+        # cv2.drawContours(frame, [lower_ground], -1, (0, 255, 0), -1)
         x_min, y_min = np.min(lower_ground, axis=0).astype(int)
         x_max, y_max = np.max(lower_ground, axis=0).astype(int)
-        print("x_min, y_min, x_max, y_max:", x_min, y_min, x_max, y_max)
         model = copy.deepcopy(mesh)
 
         rendered_model = frame_helpers.render_model(
@@ -271,7 +266,6 @@ while frame_index < len(frames):
         
         rendered_image = rendered_model.copy()
         rendered_image = cv2.resize(rendered_image, (width, height))
-        print("rendered_image shape:", rendered_image.shape)
         new_sizes = ((y_max - y_min) , (x_max - x_min) )
         # rendered_image = cv2.resize(rendered_image, new_sizes)
 
