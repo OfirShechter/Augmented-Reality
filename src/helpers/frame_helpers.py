@@ -158,12 +158,12 @@ class FrameHelpers:
         # Create a hidden Open3D visualizer
         vis = o3d.visualization.Visualizer()
         # vis.create_window(visible=True)
-        vis.create_window(visible=False, width=intrinsic.width, height=intrinsic.height)
+        vis.create_window(visible=False, intrinsic.width, height=intrinsic.height)
 
         # Add lighting (Phong shading)
         opt = vis.get_render_option()
         opt.light_on = True  # Enable lighting
-        opt.background_color = np.array([0, 0, 0])  # White background
+        opt.background_color = np.array([255, 0, 0])  # Red background
         vis.add_geometry(mesh)
 
         # Get the view control to set the camera intrinsics

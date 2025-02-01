@@ -272,9 +272,8 @@ while frame_index < len(frames):
         
         display_frame = frame.copy()
            
-        # Create mask: Keep only non-black pixels (3D model)
-        gray_render = cv2.cvtColor(rendered_image, cv2.COLOR_RGB2GRAY)
-        _, mask = cv2.threshold(gray_render, 1, 255, cv2.THRESH_BINARY)
+        # Create mask: Keep only non-pink pixels (3D model)
+        mask = np.all(rendered_image != [255, 0, 0], axis=-1).astype(np.uint8)
 
         # Find bounding box of the rendered model
         # x, y, w, h = cv2.boundingRect(mask)
