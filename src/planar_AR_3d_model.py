@@ -256,9 +256,14 @@ while frame_index < len(frames):
         # draw_cube(frame, imgpts)
         # draw_cube(frame, imgpts)
         # Get the bounding box of the projected points
-        x_min, y_min = np.min(imgpts[:, 0, :], axis=0).astype(int)
-        x_max, y_max = np.max(imgpts[:, 0, :], axis=0).astype(int)
-
+        print("imgpts", imgpts)
+        imgpts = np.int32(imgpts).reshape(-1, 2)
+        lower_ground = imgpts[:4]
+        cv2.drawContours(frame, [lower_ground], -1, (0, 255, 0), -1)
+        print("lower_ground:", lower_ground)
+        x_min, y_min = np.min(lower_ground, axis=0).astype(int)
+        x_max, y_max = np.max(lower_ground, axis=0).astype(int)
+        print("x_min, y_min, x_max, y_max:", x_min, y_min, x_max, y_max)
         model = copy.deepcopy(mesh)
 
         rendered_model = frame_helpers.render_model(
