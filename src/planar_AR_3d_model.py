@@ -64,13 +64,14 @@ rectangle_points = square_size * np.float32([
     [0, 0, -1], [2, 0, -1], [2, 3, -1], [0, 3, -1]  # Top face
 ])
 
-axis = 3 * square_size * np.float32([[1,0,0], [0,1,0], [0,0,-1]]).reshape(-1,3)
+axis = 3 * square_size * np.float32([[0, 0, 0], [1,0,0], [0,1,0], [0,0,-1]]).reshape(-1,3)
 
-def draw_axises(img, start_corner, imgpts):
+def draw_axises(img, imgpts):
     imgpts = imgpts.astype("int32")
-    img = cv2.line(img, start_corner, tuple(imgpts[0].ravel()), (255,0,0), 5)
-    img = cv2.line(img, start_corner, tuple(imgpts[1].ravel()), (0,255,0), 5)
-    img = cv2.line(img, start_corner, tuple(imgpts[2].ravel()), (0,0,255), 5)
+    center = tuple(imgpts[0].ravel())
+    img = cv2.line(img, center, tuple(imgpts[1].ravel()), (255,0,0), 5)
+    img = cv2.line(img, center, tuple(imgpts[2].ravel()), (0,255,0), 5)
+    img = cv2.line(img, center, tuple(imgpts[3].ravel()), (0,0,255), 5)
     return img
 
 def draw_cube(img, imgpts):
@@ -127,6 +128,13 @@ output_writer = cv2.VideoWriter(
 )
 
 # ========== run on all frames
+width, height = frames[0].shape[1], frames[0].shape[0]    # Image dimensions
+print(width, height)
+fx, fy, cx, cy = K[0, 0], K[1, 1], K[0, 2], K[1, 2]
+
+# Create Open3D intrinsic object
+intrinsic = o3d.camera.PinholeCameraIntrinsic(width, height, fx, fy, cx, cy)
+
 frame_index = 0
 alpha = 0.4  # Smoothing factor for EMA
 prev_H = None
@@ -233,6 +241,7 @@ while frame_index < len(frames):
     # For this we just need the template width and height in cm.
     #
     # this part is 2 rows
+    print(sub_corners.shape)
     ret, rvec, tvec = cv2.solvePnP(objp, sub_corners, K, dist_coeffs)
 
     # ++++++ draw object with r_vec and t_vec on top of rgb frame
@@ -240,8 +249,10 @@ while frame_index < len(frames):
     # after this works you can replace this with the draw function from the renderer class renderer.draw() (1 line)
     if ret:
         imgpts = cv2.projectPoints(axis, rvec, tvec, K, dist_coeffs)[0]
-        draw_axises(frame, corner_pixel, imgpts)
-        # imgpts = cv2.projectPoints(cube_points_2, rvec, tvec, K, dist_coeffs)[0]
+        # ret, rvec, tvec = cv2.solvePnP(axis, imgpts, K, dist_coeffs)
+        draw_axises(frame, imgpts)
+        imgpts = cv2.projectPoints(cube_points_2, rvec, tvec, K, dist_coeffs)[0]
+        
         # draw_cube(frame, imgpts)
         # draw_cube(frame, imgpts)
         # Get the bounding box of the projected points
@@ -251,7 +262,7 @@ while frame_index < len(frames):
         model = copy.deepcopy(mesh)
 
         rendered_model = frame_helpers.render_model(
-            model, rvec, tvec)
+            model, rvec, tvec, intrinsic, width, height)
         rendered_image = rendered_model.copy()
         new_sizes = ((y_max - y_min) , (x_max - x_min) )
         rendered_image = cv2.resize(rendered_image, new_sizes)
@@ -294,18 +305,18 @@ while frame_index < len(frames):
     pass
 
     frame_index += step_size
-    key = cv2.waitKey(0) & 0xFF
-    if key == ord('l'):  # 'l' for next frame
-        frame_index = min(frame_index + step_size, len(frames) - step_size)
-        print("l changed frame index to:", frame_index)
-        continue
-    elif key == ord('k'):  # 'k' for previous frame
-        frame_index = max(frame_index - step_size, 0)
-        continue
-    elif key == ord('q'):  # 'q' to quit
-        break
-    else:
-        print('UNESSIGNED KEY PRESSED:', key)
+    # key = cv2.waitKey(0) & 0xFF
+    # if key == ord('l'):  # 'l' for next frame
+    #     frame_index = min(frame_index + step_size, len(frames) - step_size)
+    #     print("l changed frame index to:", frame_index)
+    #     continue
+    # elif key == ord('k'):  # 'k' for previous frame
+    #     frame_index = max(frame_index - step_size, 0)
+    #     continue
+    # elif key == ord('q'):  # 'q' to quit
+    #     break
+    # else:
+    #     print('UNESSIGNED KEY PRESSED:', key)
     if cv2.waitKey(10) & 0xFF == ord('q'):
         break
 
