@@ -92,11 +92,16 @@ class FrameHelpers:
         return cv2.VideoWriter(output_video_path, fourcc, frame_rate, frame_size)
 
     @staticmethod
-    def render_model(mesh, rvec, tvec, intrinsic, width, height):
+    def render_model(mesh, rvec, tvec, intrinsic, obj_center):
         """Render the 3D model with Open3D from the estimated camera viewpoint."""
         r_mat = mesh.get_rotation_matrix_from_xyz((np.pi/2, 0, 0))
-        cent = mesh.get_center()
-        mesh = mesh.rotate(r_mat, center=cent)
+        # cent = mesh.get_center()
+        cent = obj_center
+        cent = (0,0,0)
+        print(cent)
+        scale_factor = 0.015
+        mesh.scale(scale_factor, center=cent)
+        # mesh = mesh.rotate(r_mat, center=cent)
         # # Convert rotation vector to rotation matrix
         R, _ = cv2.Rodrigues(rvec)
         # Adjust rotation matrix for Open3D
@@ -106,58 +111,21 @@ class FrameHelpers:
             [0,  0, -1]
         ])
         R_o3d = R @ R_conversion  # Convert OpenCV R to Open3D R
-
         # Build Open3D transformation matrix
         transformation_matrix = np.eye(4)
-        transformation_matrix[:3, :3] = R_o3d
-        transformation_matrix[:3, 3] = tvec.flatten() * 50 #* [1, -1, -1]
-
-        # #Apply transformation
-        # # print("tvec:", tvec.flatten(), "rvec:", rvec, "R:", R)
-        # t_mesh = mesh.translate(tvec, relative=False)
-        # mesh_mat_r = mesh.get_rotation_matrix_from_xyz(rvec.flatten())
-        # # print("mesh_mat_r:", mesh_mat_r)
-        # r_mesh = t_mesh.rotate(mesh_mat_r)
-        # # o3d.visualization.draw_geometries([mesh, r_mesh])
-
+        transformation_matrix[:3, :3] = R_o3d @ r_mat
+        tvec = tvec.flatten()
+        tvec = [tvec[0], tvec[1], tvec[2]]
+        transformation_matrix[:3, 3] = tvec
+        print("tvec", tvec)
         # mesh.transform(transformation_matrix)
         # # Create coordinate frame
-        # coordinate_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=1.0)
-        # coordinate_frame.compute_vertex_normals()
-
-        # # coordinate_frame = coordinate_frame.translate(tvec, relative=False)
-        # # matR = coordinate_frame.get_rotation_matrix_from_axis_angle(rvec.flatten())
-        # # coordinate_frame = coordinate_frame.rotate(matR)
-        # # # Translate the coordinate frame to the top left
-        # r_mat = coordinate_frame.get_rotation_matrix_from_xyz(
-        #     (0, np.pi/2, 0))  # [red, green, blue]
-        # cent = (0, 0, 0)  # coordinate_frame.get_center()
-        # coordinate_frame = coordinate_frame.rotate(r_mat, center=cent)
-        # mesh = mesh.rotate(r_mat, center=cent)
-        # r_mat = coordinate_frame.get_rotation_matrix_from_xyz((np.pi/2, 0, 0))
-        # # cent = coordinate_frame.get_center()
-        # # coordinate_frame = coordinate_frame.rotate(r_mat, center=cent)
-
-        # r_mat = coordinate_frame.get_rotation_matrix_from_xyz(
-        #     (0, np.pi / 2, 0))
-        # # coordinate_frame = coordinate_frame.rotate(r_mat, center=cent)
-        # # o3d.visualization.draw_geometries([coordinate_frame])
-        # coordinate_frame_with_translate = copy.deepcopy(coordinate_frame).translate(tvec, relative=False)
-        # coordinate_frame_with_translate.rotate(coordinate_frame.get_rotation_matrix_from_xyz(rvec))
-        # coordinate_frame_with_translate.rotate(coordinate_frame.get_rotation_matrix_from_xyz((np.pi/2, 0, 0)))
-
-        # coordinate_frame.transform(transformation_matrix)
-        # o3d.visualization.draw_geometries([coordinate_frame_with_translate])
-        # coordinate_frame = coordinate_frame_with_translate
-        
-        # mesh_with_t = copy.deepcopy(mesh).translate(tvec, relative=False)
-        # mesh_with_t.rotate(mesh.get_rotation_matrix_from_xyz(rvec),
-        #       center=(0, 0, 0))
-        # mesh_with_t.rotate(mesh_with_t.get_rotation_matrix_from_xyz((np.pi/2, 0, 0)))
-        # print('coordinate_frame', coordinate_frame)
+        coordinate_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=1.0)
+        coordinate_frame.compute_vertex_normals()
+        coordinate_frame.scale(scale_factor, center=cent)
         # Create a hidden Open3D visualizer
         vis = o3d.visualization.Visualizer()
-        # vis.create_window(visible=True)
+        # vis.create_window(visible=False)
         vis.create_window(visible=False, width=intrinsic.width, height=intrinsic.height)
 
         # Add lighting (Phong shading)
@@ -171,7 +139,7 @@ class FrameHelpers:
         cam_params = o3d.camera.PinholeCameraParameters()
         cam_params.intrinsic = intrinsic
         cam_params.extrinsic = transformation_matrix  # Aligns object with camera
-
+        ctr.set_lookat(cent)
         
         ctr.convert_from_pinhole_camera_parameters(cam_params, allow_arbitrary=True)
                 
@@ -191,7 +159,6 @@ class FrameHelpers:
 
         # Convert Open3D float buffer to OpenCV format
         render = (np.array(render) * 255).astype(np.uint8)
-        print(f"rendered size: {render.shape}; image size: {(width, height)}")
         # Convert from RGB to BGR
         render = cv2.cvtColor(render, cv2.COLOR_RGB2BGR)
 

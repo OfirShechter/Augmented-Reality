@@ -214,6 +214,7 @@ while frame_index < len(frames):
         output_frame = frames[frame_index].copy()
         # output_frame = frame
         img_with_cube = draw_cube(output_frame, imgpts)
+        print("tvec_flatten:", tvec.flatten())
         cv2.imshow('Cube', img_with_cube)
 
     # =========== plot and save frame

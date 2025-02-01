@@ -227,7 +227,7 @@ while frame_index < len(frames):
     # Get the pixel coordinates of the desired corner
     corner_pixel = np.floor(corners[corner_index][0]).astype(int)
     # Draw the corner on the frame
-    cv2.circle(frame, tuple(corner_pixel), 10, (0, 255, 0), -1)
+    # cv2.circle(frame, tuple(corner_pixel), 10, (0, 255, 0), -1)
     # ++++++++ solve PnP to get cam pose (r_vec and t_vec)
     # `cv2.solvePnP` is a function that receives:
     # - xyz of the template in centimeter in camera world (x,3)
@@ -250,9 +250,9 @@ while frame_index < len(frames):
     if ret:
         imgpts = cv2.projectPoints(axis, rvec, tvec, K, dist_coeffs)[0]
         # ret, rvec, tvec = cv2.solvePnP(axis, imgpts, K, dist_coeffs)
-        draw_axises(frame, imgpts)
-        imgpts = cv2.projectPoints(cube_points_2, rvec, tvec, K, dist_coeffs)[0]
-        
+        # draw_axises(frame, imgpts)
+        imgpts = cv2.projectPoints(cube_points, rvec, tvec, K, dist_coeffs)[0]
+        center_of_cube = np.mean(cube_points, axis=0)
         # draw_cube(frame, imgpts)
         # draw_cube(frame, imgpts)
         # Get the bounding box of the projected points
@@ -262,8 +262,11 @@ while frame_index < len(frames):
         model = copy.deepcopy(mesh)
 
         rendered_model = frame_helpers.render_model(
-            model, rvec, tvec, intrinsic, width, height)
+            model, rvec, tvec, intrinsic, center_of_cube)
+        
         rendered_image = rendered_model.copy()
+        rendered_image = cv2.resize(rendered_image, (width, height))
+        print("rendered_image shape:", rendered_image.shape)
         new_sizes = ((y_max - y_min) , (x_max - x_min) )
         # rendered_image = cv2.resize(rendered_image, new_sizes)
 
@@ -276,29 +279,40 @@ while frame_index < len(frames):
         mask = np.all(rendered_image != [255, 0, 0], axis=-1).astype(np.uint8)
 
         # Find bounding box of the rendered model
-        # x, y, w, h = cv2.boundingRect(mask)
-        # print("bounding box:", x, y, w, h)
+        x, y, w, h = cv2.boundingRect(mask)
+        print("bounding box:", x, y, w, h)
         # # Extract only the model part (crop image)
-        # cropped_model = rendered_image[y:y+h, x:x+w]
-        # cropped_mask = mask[y:y+h, x:x+w]
+        cropped_model = rendered_image[y:y+h, x:x+w]
+        cropped_mask = mask[y:y+h, x:x+w]
         
-        cropped_mask_3ch = np.stack([mask] * 3, axis=-1) 
-        cropped_model = rendered_image
+        cropped_mask_3ch = np.stack([cropped_mask] * 3, axis=-1) 
         print("cropped_model shape:", cropped_model.shape, "cropped_mask_3ch shape:", cropped_mask_3ch.shape)
         # --------------------------
         # Step 6: Overlay 3D Model onto Chessboard Image
         # --------------------------
         # Define region of interest (ROI) on the chessboard image
         
-        # roi = display_frame[corner_pixel[1]:corner_pixel[1]+h, corner_pixel[0]:corner_pixel[0]+w]
+        roi = display_frame[y_min:y_max, x_min:x_max]
+        # Calculate padding sizes
+        pad_top = (roi.shape[0] - cropped_model.shape[0]) // 2
+        pad_bottom = roi.shape[0] - cropped_model.shape[0] - pad_top
+        pad_left = (roi.shape[1] - cropped_model.shape[1]) // 2
+        pad_right = roi.shape[1] - cropped_model.shape[1] - pad_left
 
-        # # Copy only the model pixels to the chessboard image
-        # print("roi shape:", roi.shape, "cropped_model shape:", cropped_model.shape)
-        # roi[cropped_mask_3ch > 0] = cropped_model[cropped_mask_3ch > 0]
+        # Pad cropped_model and cropped_mask_3ch to match the ROI size
+        cropped_model_padded = np.pad(cropped_model, ((pad_top, pad_bottom), (pad_left, pad_right), (0, 0)), 'constant', constant_values=0)
+        cropped_mask_3ch_padded = np.pad(cropped_mask_3ch, ((pad_top, pad_bottom), (pad_left, pad_right), (0, 0)), 'constant', constant_values=0)
+
+        print("roi shape:", roi.shape, "cropped_model_padded shape:", cropped_model_padded.shape)
+        print("cropped_mask_3ch_padded shape:", cropped_mask_3ch_padded.shape)
+
+        # Copy only the model pixels to the chessboard image
+        roi[cropped_mask_3ch_padded > 0] = cropped_model_padded[cropped_mask_3ch_padded > 0]
+
 
         # # Put back the modified ROI into the final image- put the model on the square corner
-        # display_frame[corner_pixel[1]:corner_pixel[1]+h, corner_pixel[0]:corner_pixel[0]+w] = roi
-        display_frame[cropped_mask_3ch > 0] =  rendered_image[cropped_mask_3ch > 0]
+        display_frame[y_min:y_max, x_min:x_max] = roi
+        # display_frame[cropped_mask_3ch > 0] =  rendered_image[cropped_mask_3ch > 0]
         cv2.imshow('3d mixed', display_frame)
         
     # =========== plot and save frame
