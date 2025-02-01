@@ -96,10 +96,17 @@ class FrameHelpers:
         """Render the 3D model with Open3D from the estimated camera viewpoint."""
         # # Convert rotation vector to rotation matrix
         R, _ = cv2.Rodrigues(rvec)
+        # Adjust rotation matrix for Open3D
+        R_conversion = np.array([
+            [1,  0,  0],
+            [0, -1,  0],
+            [0,  0, -1]
+        ])
+        R_o3d = R @ R_conversion  # Convert OpenCV R to Open3D R
 
         # Build Open3D transformation matrix
         transformation_matrix = np.eye(4)
-        transformation_matrix[:3, :3] = R
+        transformation_matrix[:3, :3] = R_o3d
         transformation_matrix[:3, 3] = tvec.flatten()
 
         # #Apply transformation
@@ -141,20 +148,20 @@ class FrameHelpers:
         # o3d.visualization.draw_geometries([coordinate_frame_with_translate])
         coordinate_frame = coordinate_frame_with_translate
         
-        mesh_with_t = copy.deepcopy(mesh).translate(tvec, relative=False)
-        mesh_with_t.rotate(mesh.get_rotation_matrix_from_xyz(rvec),
-              center=(0, 0, 0))
-        mesh_with_t.rotate(mesh_with_t.get_rotation_matrix_from_xyz((np.pi/2, 0, 0)))
+        # mesh_with_t = copy.deepcopy(mesh).translate(tvec, relative=False)
+        # mesh_with_t.rotate(mesh.get_rotation_matrix_from_xyz(rvec),
+        #       center=(0, 0, 0))
+        # mesh_with_t.rotate(mesh_with_t.get_rotation_matrix_from_xyz((np.pi/2, 0, 0)))
         print('coordinate_frame', coordinate_frame)
         # Create a hidden Open3D visualizer
         vis = o3d.visualization.Visualizer()
-        vis.create_window(visible=False)
+        vis.create_window(visible=False, width=intrinsic.width, height=intrinsic.height)
 
         # Add lighting (Phong shading)
         opt = vis.get_render_option()
         opt.light_on = True  # Enable lighting
         opt.background_color = np.array([0, 0, 0])  # White background
-
+        vis.add_geometry(mesh)
 
         # Get the view control to set the camera intrinsics
         ctr = vis.get_view_control()
@@ -164,68 +171,25 @@ class FrameHelpers:
 
         
         ctr.convert_from_pinhole_camera_parameters(cam_params, allow_arbitrary=True)
-        
-        # Add the model to the scene
-        vis.add_geometry(coordinate_frame_with_translate)
-        vis.add_geometry(mesh_with_t)
-        vis.poll_events()
-        vis.update_renderer()
-        # Adjust the camera view to ensure the entire scene is visible
-        # ctr.set_zoom(0.8)
+                
+        # Capture image from Open3D
+        ctr.set_zoom(0.8)
         # ctr.set_lookat([0, 0, 0])
         # ctr.set_up([0, -1, 0])
         # ctr.set_front([0, 0, -1])
-        # Capture image from Open3D
-        render = vis.capture_screen_float_buffer(do_render=True)
-        # vis.run()
+
+        print("before run")
+        vis.poll_events()
         vis.update_renderer()
+        # vis.run()
+        print("after run")
+        render = vis.capture_screen_float_buffer(do_render=True)
         vis.destroy_window()
 
         # Convert Open3D float buffer to OpenCV format
         render = (np.array(render) * 255).astype(np.uint8)
+        print(f"rendered size: {render.shape}; image size: {(width, height)}")
         # Convert from RGB to BGR
         render = cv2.cvtColor(render, cv2.COLOR_RGB2BGR)
 
         return render
-
-    def load_glb_with_materials(file_path):
-        """
-        Load a GLB file with its colors and textures using Open3D and trimesh
-
-        Args:
-            file_path (str): Path to the GLB file
-
-        Returns:
-            o3d.geometry.TriangleMesh: Open3D mesh with materials
-        """
-        # First load with trimesh to get the full scene with materials
-        print(file_path)
-        scene = trimesh.load(file_path, file_type='glb')
-
-        # Initialize an empty Open3D mesh
-        final_mesh = o3d.geometry.TriangleMesh()
-
-        # Process each geometry in the scene
-        for name, geometry in scene.geometry.items():
-            # Convert trimesh geometry to Open3D geometry
-            mesh = o3d.geometry.TriangleMesh()
-            mesh.vertices = o3d.utility.Vector3dVector(geometry.vertices)
-            mesh.triangles = o3d.utility.Vector3iVector(geometry.faces)
-            print("geometry.visual.kind:", geometry.visual.kind)
-            # Add vertex colors if available
-            if geometry.visual.kind == 'vertex':
-                mesh.vertex_colors = o3d.utility.Vector3dVector(
-                    geometry.visual.vertex_colors[:, :3])
-
-            # Add texture if available
-            if geometry.visual.kind == 'texture':
-                mesh.triangle_uvs = o3d.utility.Vector2dVector(
-                    geometry.visual.uv)
-                if hasattr(geometry.visual.material, 'image'):
-                    texture = geometry.visual.material.image
-                    mesh.textures = [o3d.geometry.Image(texture)]
-
-            # Combine the mesh with the final mesh
-            final_mesh += mesh
-
-        return final_mesh
