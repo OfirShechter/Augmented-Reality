@@ -94,6 +94,9 @@ class FrameHelpers:
     @staticmethod
     def render_model(mesh, rvec, tvec, intrinsic, width, height):
         """Render the 3D model with Open3D from the estimated camera viewpoint."""
+        r_mat = mesh.get_rotation_matrix_from_xyz((np.pi/2, 0, 0))
+        cent = mesh.get_center()
+        mesh = mesh.rotate(r_mat, center=cent)
         # # Convert rotation vector to rotation matrix
         R, _ = cv2.Rodrigues(rvec)
         # Adjust rotation matrix for Open3D
@@ -107,7 +110,7 @@ class FrameHelpers:
         # Build Open3D transformation matrix
         transformation_matrix = np.eye(4)
         transformation_matrix[:3, :3] = R_o3d
-        transformation_matrix[:3, 3] = tvec.flatten()
+        transformation_matrix[:3, 3] = tvec.flatten() * 50 #* [1, -1, -1]
 
         # #Apply transformation
         # # print("tvec:", tvec.flatten(), "rvec:", rvec, "R:", R)
@@ -119,9 +122,8 @@ class FrameHelpers:
 
         # mesh.transform(transformation_matrix)
         # # Create coordinate frame
-        coordinate_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(
-            size=1.0)
-        coordinate_frame.compute_vertex_normals()
+        # coordinate_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=1.0)
+        # coordinate_frame.compute_vertex_normals()
 
         # # coordinate_frame = coordinate_frame.translate(tvec, relative=False)
         # # matR = coordinate_frame.get_rotation_matrix_from_axis_angle(rvec.flatten())
@@ -140,21 +142,22 @@ class FrameHelpers:
         #     (0, np.pi / 2, 0))
         # # coordinate_frame = coordinate_frame.rotate(r_mat, center=cent)
         # # o3d.visualization.draw_geometries([coordinate_frame])
-        coordinate_frame_with_translate = copy.deepcopy(coordinate_frame).translate(tvec, relative=False)
-        coordinate_frame_with_translate.rotate(coordinate_frame.get_rotation_matrix_from_xyz(rvec))
-        coordinate_frame_with_translate.rotate(coordinate_frame.get_rotation_matrix_from_xyz((np.pi/2, 0, 0)))
+        # coordinate_frame_with_translate = copy.deepcopy(coordinate_frame).translate(tvec, relative=False)
+        # coordinate_frame_with_translate.rotate(coordinate_frame.get_rotation_matrix_from_xyz(rvec))
+        # coordinate_frame_with_translate.rotate(coordinate_frame.get_rotation_matrix_from_xyz((np.pi/2, 0, 0)))
 
         # coordinate_frame.transform(transformation_matrix)
         # o3d.visualization.draw_geometries([coordinate_frame_with_translate])
-        coordinate_frame = coordinate_frame_with_translate
+        # coordinate_frame = coordinate_frame_with_translate
         
         # mesh_with_t = copy.deepcopy(mesh).translate(tvec, relative=False)
         # mesh_with_t.rotate(mesh.get_rotation_matrix_from_xyz(rvec),
         #       center=(0, 0, 0))
         # mesh_with_t.rotate(mesh_with_t.get_rotation_matrix_from_xyz((np.pi/2, 0, 0)))
-        print('coordinate_frame', coordinate_frame)
+        # print('coordinate_frame', coordinate_frame)
         # Create a hidden Open3D visualizer
         vis = o3d.visualization.Visualizer()
+        # vis.create_window(visible=True)
         vis.create_window(visible=False, width=intrinsic.width, height=intrinsic.height)
 
         # Add lighting (Phong shading)
@@ -173,7 +176,7 @@ class FrameHelpers:
         ctr.convert_from_pinhole_camera_parameters(cam_params, allow_arbitrary=True)
                 
         # Capture image from Open3D
-        ctr.set_zoom(0.8)
+        # ctr.set_zoom(0.5)
         # ctr.set_lookat([0, 0, 0])
         # ctr.set_up([0, -1, 0])
         # ctr.set_front([0, 0, -1])
