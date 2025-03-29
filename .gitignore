@@ -4,3 +4,5 @@ pickle_files/*
 videos/*
 !videos/working-videos/
 3d_models/*
+*.pdf
+*.zip
